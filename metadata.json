@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Storybook Creator",
+  "description": "A web application that uses Gemini to generate and illustrate a children's storybook from a detailed prompt. Users can input a structured narrative, and the app will produce a multi-page book with text and corresponding images.",
+  "requestFramePermissions": []
+}
