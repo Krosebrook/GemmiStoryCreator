@@ -4,6 +4,7 @@ import { generateSingleImage } from '../services/geminiService';
 import { SparklesIcon, XCircleIcon } from './Icons';
 import { playSound } from '../services/soundService';
 import { CustomizationState } from '../types';
+import { getFriendlyErrorMessage } from '../services/errorService';
 
 interface CoverCustomizerProps {
   coverImage: string | null;
@@ -12,9 +13,10 @@ interface CoverCustomizerProps {
   setIsGenerating: (isGenerating: boolean) => void;
   storyTitle: string;
   customizations: CustomizationState;
+  setError: (error: { title: string; message: string } | null) => void;
 }
 
-export const CoverCustomizer: React.FC<CoverCustomizerProps> = ({ coverImage, setCoverImage, isGenerating, setIsGenerating, storyTitle, customizations }) => {
+export const CoverCustomizer: React.FC<CoverCustomizerProps> = ({ coverImage, setCoverImage, isGenerating, setIsGenerating, storyTitle, customizations, setError }) => {
   const [mode, setMode] = useState<'generate' | 'upload'>('generate');
   
   const createDefaultPrompt = (title: string, customs: CustomizationState) => {
@@ -34,12 +36,13 @@ export const CoverCustomizer: React.FC<CoverCustomizerProps> = ({ coverImage, se
     if (!prompt.trim() || isGenerating) return;
     playSound('generate');
     setIsGenerating(true);
+    setError(null);
     try {
       const newImage = await generateSingleImage(prompt);
       setCoverImage(newImage);
     } catch (e) {
       console.error("Failed to generate cover:", e);
-      alert("There was an error generating the cover image. Please try again.");
+      setError(getFriendlyErrorMessage(e));
     } finally {
       setIsGenerating(false);
     }
