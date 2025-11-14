@@ -15,7 +15,6 @@ export const RegenerationPromptModal: React.FC<RegenerationPromptModalProps> = (
 
   const handleConfirm = () => {
     if (prompt.trim()) {
-      playSound('generate');
       onConfirm(prompt);
     }
   };

@@ -50,7 +50,10 @@ export const CoverCustomizer: React.FC<CoverCustomizerProps> = ({ coverImage, se
 
   const TabButton: React.FC<{ active: boolean, onClick: () => void, children: React.ReactNode }> = ({ active, onClick, children }) => (
     <button
-      onClick={onClick}
+      onClick={() => {
+        playSound('click');
+        onClick();
+      }}
       className={`px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 transition-colors ${
         active 
         ? 'border-teal-400 text-teal-300 bg-slate-800/30' 

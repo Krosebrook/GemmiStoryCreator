@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { StoryPage, CustomizationState } from './types';
 import { generateStoryAndImages, generateSingleImage } from './services/geminiService';
 import { Header } from './components/Header';
 import { StorybookViewer } from './components/StorybookViewer';
 import { LoadingState } from './components/LoadingState';
-import { InfoIcon, SparklesIcon, BookOpenIcon, PaintBrushIcon, UploadIcon, PuzzlePieceIcon } from './components/Icons';
-import { MASTER_PROMPT, defaultCustomizations, DEFAULT_STORY_TITLE, DEFAULT_BOOK_2_TITLE } from './constants';
+import { InfoIcon, SparklesIcon, BookOpenIcon, PaintBrushIcon, UploadIcon, PuzzlePieceIcon, MicrophoneIcon } from './components/Icons';
+import { MASTER_PROMPT, defaultCustomizations, DEFAULT_STORY_TITLE, DEFAULT_BOOK_2_TITLE, artStyles } from './constants';
 import { CharacterCustomizer } from './components/CharacterCustomizer';
 import { CoverCustomizer } from './components/CoverCustomizer';
 import { ImageUploader } from './components/ImageUploader';
@@ -13,18 +13,77 @@ import { playSound } from './services/soundService';
 import { ThemeSelector } from './components/ThemeSelector';
 import { ErrorMessage } from './components/ErrorMessage';
 import { getFriendlyErrorMessage } from './services/errorService';
+import { ArtStyleSelector } from './components/ArtStyleSelector';
+import { PageCountSelector } from './components/PageCountSelector';
+import { ResumeSessionPrompt } from './components/ResumeSessionPrompt';
 
-const createDynamicPrompt = (basePrompt: string, customizations: CustomizationState, title: string, book2Title: string, themes: string[]): string => {
-  const kinsleyDesc = `Kinsley is 7 years old with ${customizations.kinsley.hairColor.toLowerCase()} hair and a ${customizations.kinsley.expression.toLowerCase()} expression. She is wearing a ${customizations.kinsley.hatStyle.toLowerCase()} hat, and a ${customizations.kinsley.cloakColor.toLowerCase()} ${customizations.kinsley.cloakStyle.toLowerCase()} cloak over her ${customizations.kinsley.outfit.toLowerCase()}. She holds a ${customizations.kinsley.broomDesign.toLowerCase()} broom and carries a ${customizations.kinsley.magicalAccessory.toLowerCase()}.`;
+// Fix: Add types for the Web Speech API which are not standard in all TS lib versions.
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string;
+  readonly message: string;
+}
+
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly [key: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  readonly transcript: string;
+  readonly confidence: number;
+}
+
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onend: (event: Event) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+}
+
+interface SpeechRecognitionStatic {
+  new(): SpeechRecognition;
+}
+
+
+// Note: This relies on browser's Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: SpeechRecognitionStatic;
+    webkitSpeechRecognition: SpeechRecognitionStatic;
+  }
+}
+
+const STORAGE_KEY = 'gemini-storybook-session';
+
+const createDynamicPrompt = (basePrompt: string, customizations: CustomizationState, title: string, book2Title: string, themes: string[], artStyle: string, pageCount: number): string => {
+  const kinsleyDesc = customizations.kinsley.description;
   const ameliaDesc = `Amelia is 5 years old with ${customizations.amelia.hairColor.toLowerCase()} hair and a ${customizations.amelia.expression.toLowerCase()} expression. She is wearing a ${customizations.amelia.hatStyle.toLowerCase()} hat, and a ${customizations.amelia.cloakColor.toLowerCase()} ${customizations.amelia.cloakStyle.toLowerCase()} cloak over her ${customizations.amelia.outfit.toLowerCase()}. She holds a ${customizations.amelia.broomDesign.toLowerCase()} broom and carries a ${customizations.amelia.magicalAccessory.toLowerCase()}.`;
   const themesString = themes.length > 0 ? themes.join(', ') : 'magical and whimsical';
+  const artStyleDesc = artStyles[artStyle as keyof typeof artStyles] || artStyles['Stop-Motion'];
 
   return basePrompt
     .replace(/\[STORY_TITLE\]/g, title)
     .replace(/\[BOOK_2_TITLE\]/g, book2Title)
     .replace(/\[STORY_THEMES\]/g, themesString)
+    .replace(/\[ART_STYLE_DESCRIPTION\]/g, artStyleDesc)
     .replace(/\[KINSLEY_DESCRIPTION\]/g, kinsleyDesc)
-    .replace(/\[AMELIA_DESCRIPTION\]/g, ameliaDesc);
+    .replace(/\[AMELIA_DESCRIPTION\]/g, ameliaDesc)
+    .replace(/\[PAGE_COUNT\]/g, pageCount.toString());
 };
 
 const App: React.FC = () => {
@@ -42,6 +101,162 @@ const App: React.FC = () => {
   const [isGeneratingCover, setIsGeneratingCover] = useState<boolean>(false);
   const [regeneratingPage, setRegeneratingPage] = useState<number | null>(null);
   const [selectedThemes, setSelectedThemes] = useState<string[]>(['Magic', 'Friendship']);
+  const [artStyle, setArtStyle] = useState<string>('Stop-Motion');
+  const [pageCount, setPageCount] = useState<number>(10);
+  
+  // Voice input state
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const promptBeforeListening = useRef<string>('');
+
+  // Session state
+  const [sessionState, setSessionState] = useState<'checking' | 'prompt' | 'active'>('checking');
+
+  // Check for saved session on initial load
+  useEffect(() => {
+    try {
+        const savedSessionJSON = localStorage.getItem(STORAGE_KEY);
+        if (savedSessionJSON) {
+            const savedSession = JSON.parse(savedSessionJSON);
+            // Check if there is meaningful data to load
+            if (savedSession && (savedSession.prompt !== MASTER_PROMPT || savedSession.storybook)) {
+                setSessionState('prompt');
+                return;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to check for saved session:", e);
+    }
+    setSessionState('active'); // No valid session found, start active
+  }, []);
+
+  // Auto-save session state when it changes
+  useEffect(() => {
+    if (sessionState === 'active') {
+        try {
+            const sessionData = {
+                prompt, title, book2Title, storybook, customizations,
+                uploadedImage, coverImage, selectedThemes, artStyle, pageCount
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+        } catch (e) {
+            console.error("Failed to save session:", e);
+        }
+    }
+  }, [
+      prompt, title, book2Title, storybook, customizations,
+      uploadedImage, coverImage, selectedThemes, artStyle, pageCount, sessionState
+  ]);
+
+  const handleResumeSession = () => {
+    playSound('success');
+    try {
+        const savedSessionJSON = localStorage.getItem(STORAGE_KEY);
+        if (savedSessionJSON) {
+            const saved = JSON.parse(savedSessionJSON);
+            setPrompt(saved.prompt || MASTER_PROMPT);
+            setTitle(saved.title || DEFAULT_STORY_TITLE);
+            setBook2Title(saved.book2Title || DEFAULT_BOOK_2_TITLE);
+            setStorybook(saved.storybook || null);
+            setCustomizations(saved.customizations || defaultCustomizations);
+            setUploadedImage(saved.uploadedImage || null);
+            setCoverImage(saved.coverImage || null);
+            setSelectedThemes(saved.selectedThemes || ['Magic', 'Friendship']);
+            setArtStyle(saved.artStyle || 'Stop-Motion');
+            setPageCount(saved.pageCount || 10);
+        }
+    } catch (e) {
+        console.error("Failed to load saved session:", e);
+        // If loading fails, just start a new session
+        handleStartNewSession();
+        return;
+    }
+    setSessionState('active');
+  };
+
+  const resetStateToDefaults = () => {
+    setPrompt(MASTER_PROMPT);
+    setTitle(DEFAULT_STORY_TITLE);
+    setBook2Title(DEFAULT_BOOK_2_TITLE);
+    setStorybook(null);
+    setCustomizations(defaultCustomizations);
+    setUploadedImage(null);
+    setCoverImage(null);
+    setSelectedThemes(['Magic', 'Friendship']);
+    setArtStyle('Stop-Motion');
+    setPageCount(10);
+    setError(null);
+    setIsLoading(false);
+    setGenerationStatus('');
+    setGenerationProgress(0);
+  };
+
+  const handleStartNewSession = () => {
+      playSound('click');
+      localStorage.removeItem(STORAGE_KEY);
+      resetStateToDefaults();
+      setSessionState('active');
+  };
+
+  const handleCreateNewStory = () => {
+    playSound('click');
+    localStorage.removeItem(STORAGE_KEY);
+    resetStateToDefaults();
+  };
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setIsSpeechRecognitionSupported(true);
+      const recognition: SpeechRecognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let interim_transcript = '';
+        let final_transcript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final_transcript += event.results[i][0].transcript;
+          } else {
+            interim_transcript += event.results[i][0].transcript;
+          }
+        }
+        
+        const separator = promptBeforeListening.current.endsWith(' ') || promptBeforeListening.current === '' ? '' : ' ';
+        setPrompt(promptBeforeListening.current + separator + final_transcript + interim_transcript);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        setError({ title: "Voice Input Error", message: `An error occurred: ${event.error}. Please try again.` });
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const handleToggleListen = () => {
+    if (!isSpeechRecognitionSupported || !recognitionRef.current) return;
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      playSound('modalClose');
+    } else {
+      promptBeforeListening.current = prompt;
+      recognitionRef.current.start();
+      setIsListening(true);
+      playSound('modalOpen');
+    }
+  };
 
 
   const handleThemeChange = (theme: string) => {
@@ -51,6 +266,11 @@ const App: React.FC = () => {
         ? prev.filter(t => t !== theme)
         : [...prev, theme]
     );
+  };
+  
+  const handleArtStyleChange = (style: string) => {
+    playSound('click');
+    setArtStyle(style);
   };
 
   const handleGenerateStory = useCallback(async () => {
@@ -72,7 +292,7 @@ const App: React.FC = () => {
     setStorybook(null);
     setGenerationProgress(0);
 
-    const dynamicPrompt = createDynamicPrompt(prompt, customizations, title, book2Title, selectedThemes);
+    const dynamicPrompt = createDynamicPrompt(prompt, customizations, title, book2Title, selectedThemes, artStyle, pageCount);
 
     try {
       await generateStoryAndImages(
@@ -93,7 +313,7 @@ const App: React.FC = () => {
       setGenerationStatus('');
       setGenerationProgress(0);
     }
-  }, [prompt, isLoading, customizations, uploadedImage, title, book2Title, coverImage, selectedThemes]);
+  }, [prompt, isLoading, customizations, uploadedImage, title, book2Title, coverImage, selectedThemes, artStyle, pageCount]);
 
   const handleRegenerateImage = useCallback(async (pageNumber: number, customPrompt?: string) => {
     if (!storybook || regeneratingPage !== null) return;
@@ -122,6 +342,18 @@ const App: React.FC = () => {
         setRegeneratingPage(null);
     }
   }, [storybook, regeneratingPage]);
+
+  if (sessionState === 'checking') {
+    return (
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+             <div className="w-16 h-16 border-4 border-teal-400 border-dashed rounded-full animate-spin"></div>
+        </div>
+    );
+  }
+  
+  if (sessionState === 'prompt') {
+      return <ResumeSessionPrompt onResume={handleResumeSession} onStartNew={handleStartNewSession} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-gray-200 font-sans flex flex-col">
@@ -167,6 +399,14 @@ const App: React.FC = () => {
 
             <div className="w-full bg-slate-800/50 p-6 rounded-2xl border border-slate-700 shadow-2xl mb-6">
               <h2 className="text-2xl font-bold text-teal-400 mb-4 flex items-center">
+                <PaintBrushIcon className="w-6 h-6 mr-3" />
+                Illustration Art Style
+              </h2>
+              <ArtStyleSelector selectedStyle={artStyle} onStyleChange={handleArtStyleChange} />
+            </div>
+
+            <div className="w-full bg-slate-800/50 p-6 rounded-2xl border border-slate-700 shadow-2xl mb-6">
+              <h2 className="text-2xl font-bold text-teal-400 mb-4 flex items-center">
                 <PuzzlePieceIcon className="w-6 h-6 mr-3" />
                 Story Themes
               </h2>
@@ -200,15 +440,39 @@ const App: React.FC = () => {
                     placeholder="Enter the title for book 2..."
                 />
               </div>
+              
+              <div className="mb-6">
+                 <PageCountSelector
+                    pageCount={pageCount}
+                    onPageCountChange={setPageCount}
+                 />
+              </div>
+
 
               <div>
-                <label htmlFor="masterPrompt" className="block text-sm font-semibold text-slate-400 mb-2">Master Story Prompt</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="masterPrompt" className="block text-sm font-semibold text-slate-400">Master Story Prompt</label>
+                  <button
+                    onClick={handleToggleListen}
+                    disabled={!isSpeechRecognitionSupported || isLoading}
+                    className={`flex items-center gap-2 px-3 py-1 text-xs font-semibold rounded-full border transition-all ${
+                      isListening
+                        ? 'bg-red-500/20 border-red-500 text-red-400 animate-pulse'
+                        : 'bg-slate-700 border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    title={isSpeechRecognitionSupported ? (isListening ? 'Stop dictating' : 'Dictate with voice') : 'Voice input not supported by your browser'}
+                  >
+                    <MicrophoneIcon className="w-4 h-4" />
+                    {isListening && <span>Listening...</span>}
+                  </button>
+                </div>
                  <textarea
                     id="masterPrompt"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     className="w-full h-64 bg-slate-900 text-gray-300 p-4 rounded-lg border-2 border-slate-700 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
                     placeholder="Enter your master story prompt here..."
+                    disabled={isListening}
                   />
               </div>
               <div className="mt-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 flex items-start text-sm">
@@ -252,12 +516,7 @@ const App: React.FC = () => {
               regeneratingPage={regeneratingPage}
             />
             <button
-                onClick={() => {
-                  playSound('click');
-                  setStorybook(null);
-                  setCoverImage(null);
-                  setUploadedImage(null);
-                }}
+                onClick={handleCreateNewStory}
                 className="mt-8 px-6 py-2 bg-slate-700 text-slate-300 font-semibold rounded-full hover:bg-slate-600 transition-colors"
             >
                 Create New Story

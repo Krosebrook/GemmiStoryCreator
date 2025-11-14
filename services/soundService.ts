@@ -1,50 +1,97 @@
-import { SOUNDS } from '../assets/sounds';
+import { generateSoundEffect } from './geminiService';
 
-// Create a pool of audio objects for each sound to handle rapid plays without cutting off previous sounds.
-const audioPool: { [key: string]: HTMLAudioElement[] } = {};
-const POOL_SIZE = 4; // Number of audio instances per sound
+// --- Web Audio API Setup ---
+// The TTS model outputs audio at a 24000Hz sample rate.
+const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+const soundCache = new Map<string, AudioBuffer>();
+const isGenerating = new Set<string>();
 
-// Initialize the audio pool
-Object.keys(SOUNDS).forEach((key) => {
-  const soundName = key as keyof typeof SOUNDS;
-  audioPool[soundName] = [];
-  for (let i = 0; i < POOL_SIZE; i++) {
-    const audio = new Audio(SOUNDS[soundName]);
-    audio.volume = 0.4; // Keep sound effects subtle
-    audioPool[soundName].push(audio);
+type SoundName = 'click' | 'pageTurn' | 'modalOpen' | 'modalClose' | 'generate' | 'success';
+
+const soundPrompts: Record<SoundName, string> = {
+  click: 'A soft, quick button click sound',
+  pageTurn: 'The gentle rustle of a single paper page turning',
+  modalOpen: 'A light, welcoming swoosh sound',
+  modalClose: 'A soft thump sound',
+  generate: 'A magical, shimmering chime',
+  success: 'A short, positive, sparkling notification sound',
+};
+
+// --- Audio Decoding Helpers ---
+
+/** Decodes a base64 string into a byte array. */
+function decodeBase64(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
   }
-});
+  return bytes;
+}
 
-// Keep track of the current index for each sound's pool
-const poolIndex: { [key:string]: number } = {};
-Object.keys(SOUNDS).forEach((key) => {
-  poolIndex[key as keyof typeof SOUNDS] = 0;
-});
+/** Decodes raw PCM audio data into an AudioBuffer for playback. */
+async function decodePcmData(data: Uint8Array): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length; // Assuming mono audio (numChannels = 1)
+  const buffer = audioContext.createBuffer(1, frameCount, 24000);
+  const channelData = buffer.getChannelData(0);
+
+  for (let i = 0; i < frameCount; i++) {
+    channelData[i] = dataInt16[i] / 32768.0; // Normalize to [-1.0, 1.0]
+  }
+  return buffer;
+}
+
+/** Plays an AudioBuffer. */
+function playBuffer(buffer: AudioBuffer) {
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+  const source = audioContext.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioContext.destination);
+  source.start(0);
+}
 
 /**
- * Plays a sound from the pre-defined sound list.
- * @param soundName The name of the sound to play (e.g., 'click', 'pageTurn').
+ * Plays a sound effect. If the sound is not in the cache, it generates it
+ * using the Gemini API, caches it, and then plays it.
+ * @param soundName The name of the sound to play.
  */
-export const playSound = (soundName: keyof typeof SOUNDS) => {
-  const soundPool = audioPool[soundName];
-  if (!soundPool || soundPool.length === 0) {
-    console.warn(`Sound pool for '${soundName}' is not available.`);
+export const playSound = async (soundName: SoundName) => {
+  // If sound is already in the cache, play it immediately.
+  if (soundCache.has(soundName)) {
+    const cachedBuffer = soundCache.get(soundName);
+    if (cachedBuffer) {
+      playBuffer(cachedBuffer);
+    }
     return;
   }
-  
-  // Get the next audio object from the pool using the current index
-  const currentIndex = poolIndex[soundName];
-  const audio = soundPool[currentIndex];
-  
-  // Update the index for the next play, cycling through the pool
-  poolIndex[soundName] = (currentIndex + 1) % POOL_SIZE;
 
-  // Play the sound
-  // Rewind to the start in case it's already playing.
-  audio.currentTime = 0;
-  audio.play().catch(error => {
-    // Autoplay can be prevented by the browser before the first user interaction.
-    // This is expected behavior, so we can log a warning instead of an error.
-    console.warn(`Could not play sound '${soundName}': ${error.message}`);
-  });
+  // If we are already generating this sound, don't start another request.
+  if (isGenerating.has(soundName)) {
+    return;
+  }
+
+  try {
+    isGenerating.add(soundName);
+    
+    // Generate the sound effect using the AI model
+    const prompt = soundPrompts[soundName];
+    const base64Audio = await generateSoundEffect(prompt);
+
+    if (base64Audio) {
+      const audioBytes = decodeBase64(base64Audio);
+      const audioBuffer = await decodePcmData(audioBytes);
+      
+      // Cache the newly generated sound and play it
+      soundCache.set(soundName, audioBuffer);
+      playBuffer(audioBuffer);
+    }
+  } catch (error) {
+    console.warn(`Could not generate or play sound '${soundName}':`, error);
+  } finally {
+    isGenerating.delete(soundName);
+  }
 };

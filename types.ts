@@ -15,6 +15,7 @@ export interface CharacterOptions {
   hatStyle: string;
   magicalAccessory: string;
   expression: string;
+  description: string;
 }
 
 export interface CustomizationState {

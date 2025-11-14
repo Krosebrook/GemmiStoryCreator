@@ -5,67 +5,31 @@ export const DEFAULT_BOOK_2_TITLE = "The Forest of Whispers";
 
 export const MASTER_PROMPT = `
 You are StoryWeaver-Gemini, a multimodal generative agent that creates illustrated children’s books.
-Your task is to generate ONLY the JSON array for a 10-page illustrated children’s book titled "[STORY_TITLE]".
+Your task is to generate ONLY the JSON array for a [PAGE_COUNT]-page illustrated children’s book titled "[STORY_TITLE]".
 Use the provided reference photo of Kinsley (7) and Amelia (5) as reference for their likeness and expressions.
 The story is for ages 4–7, told in rhyme and short sentences.
 The story should incorporate the following themes: [STORY_THEMES].
 The tone should be magical, friendly-spooky, and whimsical.
-The visual art style is a 3-dimensional, hyper-realistic stop-motion look inspired by "Nightmare Before Christmas" — featuring stitched fabrics, glowing pumpkins, crooked rooftops, warm moonlight, shadowed purples, and teal accents.
+[ART_STYLE_DESCRIPTION]
 Each page object in the JSON array must have "page_number", "text", "illustration_prompt", and "notes".
 Do not output any markdown, explanations, or any text other than the JSON array itself.
 
-Here is the story outline to follow:
+Instead of a fixed page-by-page outline, follow this flexible STORY ARC. You must adapt the story's pacing and detail to perfectly fit the requested [PAGE_COUNT] pages. Ensure each page has a corresponding illustration prompt that describes the scene, characters, and actions based on the character descriptions provided below.
 
-Page 1
-Text: Under a whispering moon in Pumpkin Hollow, two tiny witches zipped their cloaks tight — tonight was candy night!
-Illustration Prompt: On a crooked, moonlit porch lit by glowing jack-o-lanterns, two young witches, Kinsley and Amelia, based on the reference photo, hold candy buckets. [KINSLEY_DESCRIPTION]. [AMELIA_DESCRIPTION]. The style is 3D stop-motion with stitched-cloth textures and teal/purple accents.
-Notes: Establish the cozy, spooky-cute setting.
-
-Page 2
-Text: Amelia twirled her wand; sparkles danced on her cat’s nose.
-Illustration Prompt: Amelia (styled after reference photo) twirls her wand, creating floating sparkles that dance on her plush cat's nose. Cozy lighting in a Nightmare Before Christmas-style neighborhood.
-Notes: focus on magical lighting, soft sparkle effects.
-
-Page 3
-Text: Kinsley grinned, broom humming like a bee.
-Illustration Prompt: Close-up on Kinsley (from reference photo) grinning, her broom humming with a teal glow. Soft fog is behind her. Cinematic moonlight casts long shadows.
-Notes: build anticipation, focus on Kinsley.
-
-Page 4
-Text: At the lane’s end, a crooked house offered a single glowing candy.
-Illustration Prompt: A silvery, friendly ghost emerges from a crooked house, offering a single, brightly glowing piece of candy. Kinsley and Amelia (from reference photo) look on with curiosity amidst swirling mist.
-Notes: introduce mystery and a friendly magical being.
-
-Page 5
-Text: “Eat it under the moon,” whispered the ghost.
-Illustration Prompt: Dramatic close-up on the glowing candy held by the two girls. It shines brightly, with orange and violet reflections on their faces.
-Notes: highlight the magical object and the ghost's instruction.
-
-Page 6
-Text: The sweets shimmered — then brooms began to rise!
-Illustration Prompt: A moment of surprise and lift-off. Kinsley and Amelia (from photo) are slightly lifted off the ground, with shocked, happy smiles. Their brooms glow intensely. Floating candy wrappers surround them.
-Notes: show weightlessness and magical activation.
-
-Page 7
-Text: They looped through clouds, laughter trailing glitter dust.
-Illustration Prompt: Dynamic aerial scene. The girls (from photo) fly on their brooms, looping through clouds high above the crooked rooftops of Pumpkin Hollow. Their laughter trails glitter dust in the wide night sky.
-Notes: action, joy, and a sense of freedom.
-
-Page 8
-Text: The plush cat blinked — its paw pointed toward the forest.
-Illustration Prompt: View from behind the girls as they fly. Below is Pumpkin Hollow. Amelia's plush cat, now animated and glowing faintly, blinks and points a paw toward a mysterious green forest in the distance.
-Notes: sense of scale and new direction.
-
-Page 9
-Text: A spiral of green light called from the trees below.
-Illustration Prompt: A beautiful but spooky forest clearing. A spiral of green light twists up from between ancient trees. Faint, glowing runes are visible on the tree bark. The girls look on from a distance.
-Notes: tone shift to wonder and deeper mystery.
-
-Page 10
-Text: Their brooms tilted — pulled toward the forest fog … and they vanished!
-Illustration Prompt: The girls' silhouettes on their brooms are pulled into a swirling green fog that has formed a doorway. The fog has subtle star shapes within it. The final caption reads: “To be continued in Book 2: [BOOK_2_TITLE].”
-Notes: End with a cliffhanger.
+STORY ARC:
+1.  **Introduction:** Introduce Kinsley ([KINSLEY_DESCRIPTION]) and Amelia ([AMELIA_DESCRIPTION]) in their whimsical, spooky-cute home, Pumpkin Hollow, on a magical candy night. They are excited and ready for an adventure.
+2.  **Inciting Incident:** The sisters encounter a friendly ghost who gives them a single piece of magical glowing candy with a mysterious instruction: "Eat it under the moon."
+3.  **Rising Action:** After eating the candy, their brooms come to life and lift them into the sky. They experience the joy and wonder of flying through the clouds high above their town.
+4.  **New Discovery:** While flying, their magical plush cat points them toward a mysterious, glowing forest they've never seen before. A strange, beautiful light calls to them from the trees.
+5.  **Cliffhanger Ending:** Drawn by the mysterious light, the sisters fly towards the forest and vanish into a magical fog, setting up the sequel, "[BOOK_2_TITLE]".
 `;
+
+export const artStyles = {
+    "Stop-Motion": `The visual art style is a 3-dimensional, hyper-realistic stop-motion look inspired by "Nightmare Before Christmas" — featuring stitched fabrics, glowing pumpkins, crooked rooftops, warm moonlight, shadowed purples, and teal accents.`,
+    "Watercolor": `The visual art style is a gentle, soft-focus watercolor painting, with bleeding colors and delicate linework. Think classic children's book illustrations with a dreamy, ethereal quality.`,
+    "Crayon Drawing": `The visual art style is a charming and naive crayon drawing, as if drawn by a child. It features thick, waxy lines, vibrant primary colors, and a sense of playful imperfection.`,
+    "Pixel Art": `The visual art style is 16-bit pixel art, reminiscent of classic adventure video games. The characters and environment are blocky but expressive, with a limited but vibrant color palette.`
+};
 
 export const customizationOptions = {
     hairColor: ["Teal", "Purple", "Auburn", "Black", "Platinum"],
@@ -90,6 +54,7 @@ export const defaultCustomizations: CustomizationState = {
         hatStyle: "Classic Pointy",
         magicalAccessory: "Tiny Spellbook",
         expression: "Excited",
+        description: "Kinsley is 7 years old with teal hair and an excited expression. She is wearing a classic pointy hat, and an indigo star-patterned cloak over her witchy dress. She holds a stardust broom and carries a tiny spellbook.",
     },
     amelia: {
         hairColor: "Platinum",
@@ -100,5 +65,6 @@ export const defaultCustomizations: CustomizationState = {
         hatStyle: "Starry Beanie",
         magicalAccessory: "Glowing Locket",
         expression: "Thoughtful",
+        description: "Amelia is 5 years old with platinum hair and a thoughtful expression. She is wearing a starry beanie hat, and a maroon hooded cloak over her overalls & striped shirt. She holds a twisted willow broom and carries a glowing locket.",
     },
 };

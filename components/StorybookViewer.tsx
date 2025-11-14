@@ -339,7 +339,9 @@ export const StorybookViewer: React.FC<StorybookViewerProps> = ({ pages, title, 
         {/* Text Overlay */}
         {!isCoverPage && page && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-6 pt-16 text-center z-10">
-              <p className="text-lg md:text-xl leading-relaxed text-white font-serif" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.7)' }}>
+              <p
+                className="text-lg md:text-xl leading-relaxed text-white font-serif story-text-glow"
+              >
                   {page.text}
               </p>
           </div>
@@ -430,11 +432,22 @@ style.innerHTML = `
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
   }
+  @keyframes glow {
+    0%, 100% {
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.4), 2px 2px 6px rgba(0,0,0,0.7);
+    }
+    50% {
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 2px 2px 6px rgba(0,0,0,0.7);
+    }
+  }
   .animate-fade-in {
     animation: fadeIn 0.8s ease-out forwards;
   }
   .animate-fade-in-fast {
     animation: fadeInFast 0.3s ease-out forwards;
+  }
+  .story-text-glow {
+    animation: glow 3s ease-in-out infinite;
   }
 `;
 document.head.appendChild(style);

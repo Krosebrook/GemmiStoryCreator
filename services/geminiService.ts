@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { StoryPage } from '../types';
 
 if (!process.env.API_KEY) {
@@ -167,5 +167,23 @@ export const generateSingleImage = async (illustrationPrompt: string): Promise<s
             }
         }
         throw new Error(`IMAGE_API_ERROR: Failed to generate a new image from the service. Details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+};
+
+export const generateSoundEffect = async (prompt: string): Promise<string | null> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text: `Sound effect: ${prompt}` }] }],
+            config: {
+                responseModalities: [Modality.AUDIO],
+            },
+        });
+
+        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        return base64Audio || null;
+    } catch (error) {
+        console.error(`Failed to generate sound effect for prompt "${prompt}":`, error);
+        return null;
     }
 };

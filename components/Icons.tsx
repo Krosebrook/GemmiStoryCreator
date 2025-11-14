@@ -64,9 +64,29 @@ export const ArrowPathIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
 );
 
 export const PuzzlePieceIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 6.087c0-1.731.875-3.32 2.25-4.243.828-.552 1.86-1.002 2.924-1.228.23-.04.464-.07.702-.095a.75.75 0 01.752.752c-.025.238-.055.472-.095.702-.226 1.064-.676 2.096-1.228 2.924-.923 1.375-2.512 2.25-4.243 2.25zM13.5 15.75c-1.731 0-3.32-.875-4.243-2.25-.552-.828-1.002-1.86-1.228-2.924a6.733 6.733 0 01-.095-.702.75.75 0 01.752-.752c.238.025.472.055.702.095 1.064.226 2.096.676 2.924 1.228 1.375.923 2.25 2.512 2.25 4.243zM6.087 14.25c-1.731 0-3.32.875-4.243 2.25-.552-.828-1.002-1.86-1.228 2.924a6.733 6.733 0 00-.095.702.75.75 0 00.752.752c.238-.025.472-.055.702-.095 1.064-.226 2.096-.676 2.924-1.228C5.212 17.57 6.087 15.98 6.087 14.25zM15.75 13.5c0 1.731.875 3.32 2.25 4.243.828.552 1.86 1.002 2.924 1.228.23.04.464.07.702.095a.75.75 0 00.752-.752c-.025-.238-.055-.472-.095-.702-.226-1.064-.676-2.096-1.228-2.924-.923-1.375-2.512-2.25-4.243-2.25z" /></Icon>
+    <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 6.087c0-1.731.875-3.32 2.25-4.243.828-.552 1.86-1.002 2.924-1.228.23-.04.464-.07.702-.095a.75.75 0 01.752.752c-.025.238-.055.472-.095.702-.226 1.064-.676 2.096-1.228 2.924-.923 1.375-2.512 2.25-4.243 2.25zM13.5 15.75c-1.731 0-3.32-.875-4.243-2.25-.552-.828-1.002-1.86-1.228-2.924a6.733 6.733 0 01-.095-.702.75.75 0 01.752-.752c.238.025.472.055.702.095 1.064.226 2.096.676 2.924 1.228 1.375.923 2.25 2.512 2.25 4.243zM6.087 14.25c-1.731 0-3.32.875-4.243 2.25-.552-.828-1.002-1.86-1.228 2.924a6.733 6.733 0 00-.095.702.75.75 0 00.752.752c.238-.025.472-.055.702-.095 1.064-.226 2.096-.676 2.924-1.228C5.212 17.57 6.087 15.98 6.087 14.25zM15.75 13.5c0 1.731.875 3.32 2.25 4.243.828.552 1.86 1.002 2.924 1.228.23.04.464-.07.702.095a.75.75 0 00.752-.752c-.025-.238-.055-.472-.095-.702-.226-1.064-.676-2.096-1.228-2.924-.923-1.375-2.512-2.25-4.243-2.25z" /></Icon>
 );
 
 export const CodeBracketIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <Icon {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25" /></Icon>
+);
+
+export const MicrophoneIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 10v2a7 7 0 11-14 0v-2" />
+    </Icon>
+);
+
+export const RectangleStackIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 14.25l-5.571-3z" />
+    </Icon>
+);
+
+export const ClockCounterClockwiseIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-6 6m0 0l-6-6m6 6V9a6 6 0 0112 0v3" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5" />
+    </Icon>
 );

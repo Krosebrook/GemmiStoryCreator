@@ -9,7 +9,7 @@ interface CharacterCustomizerProps {
 }
 
 type CharacterName = 'kinsley' | 'amelia';
-type OptionCategory = keyof CharacterOptions;
+type OptionCategory = keyof Omit<CharacterOptions, 'description'>;
 
 export const CharacterCustomizer: React.FC<CharacterCustomizerProps> = ({ customizations, setCustomizations }) => {
 
@@ -24,10 +24,21 @@ export const CharacterCustomizer: React.FC<CharacterCustomizerProps> = ({ custom
     }));
   };
 
+  const handleDescriptionChange = (character: CharacterName, value: string) => {
+    setCustomizations(prev => ({
+        ...prev,
+        [character]: {
+            ...prev[character],
+            description: value,
+        }
+    }));
+  };
+
   const renderOptions = (character: CharacterName, category: OptionCategory) => {
+    const options = customizationOptions[category] || [];
     return (
       <div className="flex flex-wrap gap-2">
-        {customizationOptions[category].map(option => {
+        {options.map(option => {
           const isSelected = customizations[character][category] === option;
           return (
             <button
@@ -50,6 +61,18 @@ export const CharacterCustomizer: React.FC<CharacterCustomizerProps> = ({ custom
   const renderCharacterSheet = (character: CharacterName, name: string) => (
     <div className="flex-1 bg-slate-900/50 p-4 rounded-lg border border-slate-700">
         <h3 className="text-xl font-bold text-purple-400 mb-4">{name}</h3>
+        {character === 'kinsley' && (
+            <div className="mb-4">
+                <label htmlFor="kinsley-description" className="block text-sm font-semibold text-slate-400 mb-2">Kinsley's Narrative Description</label>
+                <textarea
+                    id="kinsley-description"
+                    value={customizations.kinsley.description}
+                    onChange={(e) => handleDescriptionChange('kinsley', e.target.value)}
+                    className="w-full h-24 bg-slate-800 text-gray-300 p-3 rounded-lg border-2 border-slate-600 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                    placeholder="Describe Kinsley's appearance and personality..."
+                />
+            </div>
+        )}
         <div className="space-y-4">
             <div>
                 <label className="block text-sm font-semibold text-slate-400 mb-2">Expression</label>
